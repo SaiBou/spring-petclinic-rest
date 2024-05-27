@@ -1,14 +1,14 @@
 name: Java CI with Maven
 
+permissions:
+  id-token: write
+  contents: read
+  
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   build:
@@ -16,28 +16,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Build with Maven
+        run: mvn -B install --file pom.xml -Djacoco.skip=true -DdisableXmlReport=true
+  deploy:
+      needs: build
+      runs-on: ubuntu-latest
+  
+      steps:
+        - uses: actions/checkout@v2
+        - name: Set up JDK 17
+          uses: actions/setup-java@v2
+          with:
+            java-version: '17'
+            distribution: 'temurin'
+            cache: maven
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v2
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
-
-    - name: Build with Maven
-      run: mvn -B install --file pom.xml -Djacoco.skip=true -DdisableXmlReport=true
-
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}  # Ajout du client-secret
-
-    - name: 'Run Azure webapp deploy action using publish profile credentials'
-      uses: azure/webapps-deploy@v2
-      with: 
-        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}  # Utilisation des secrets
-        package: '${{ secrets.AZURE_WEBAPP_PACKAGE_PATH }}/target/*.jar'  # Utilisation des secrets et le chemin cible
+        - uses: azure/login@v1
+          with:
+            client-id: ${{ secrets.AZURE_CLIENT_ID }}
+            tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+            subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  
+        - name: 'Run Azure webapp deploy action using publish profile credentials'
+          uses: azure/webapps-deploy@v2
+          with: 
+            app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          
